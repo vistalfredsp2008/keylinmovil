@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Papelería Keylin - Punto Móvil</title>
+    
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --accent: #28a745;
+            --accent-blue: #007bff;
+            --warning: #ffc107;
+            --text: #ffffff;
+            --text-muted: #aaa;
+            --danger: #dc3545;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            user-select: none;
+        }
+
+        header {
+            background-color: #1f1f1f;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            padding-bottom: 90px;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #2a2a2a;
+            color: #fff;
+            font-size: 1.1rem;
+            box-sizing: border-box;
+        }
+
+        /* Buscador Fijo (Sticky) */
+        .sticky-search {
+            position: sticky;
+            top: -15px;
+            z-index: 10;
+            background: var(--bg-color);
+            padding-top: 5px;
+            padding-bottom: 5px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--accent);
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 5px;
+            touch-action: manipulation;
+        }
+
+        button.btn-blue { background-color: var(--accent-blue); }
+        button.btn-warning { background-color: var(--warning); color: #000; }
+        button.btn-danger { background-color: var(--danger); }
+
+        #reader {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            margin-bottom: 15px;
+        }
+
+        .precio-grande {
+            font-size: 2.8rem;
+            color: var(--accent);
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .search-results-list {
+            background: #222;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            border: 1px solid #444;
+        }
+
+        .search-item {
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .search-item:active {
+            background: #333;
+        }
+
+        nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: #1f1f1f;
+            display: flex;
+            justify-content: space-around;
+            border-top: 1px solid #333;
+            z-index: 99;
+        }
+
+        nav div {
+            padding: 14px 5px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            flex: 1;
+        }
+
+        nav div.active {
+            color: var(--accent-blue);
+            font-weight: bold;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            width: 88%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .badge-mode {
+            background: #333;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: #fff;
+        }
+
+        /* Estilo para impresión de ticket */
+        @media print {
+            body * { visibility: hidden; }
+            #ticket-impresion, #ticket-impresion * { visibility: visible; }
+            #ticket-impresion {
+                position: absolute;
+                left: 0; top: 0; width: 100%;
+                color: #000 !important;
+                background: #fff !important;
+                padding: 10px;
+                font-family: monospace;
+            }
+        }
+    </style>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body>
+
+    <header>
+        <span>Papelería Keylin</span>
+        <span class="badge-mode" id="indicator-cloud">☁️ Conectado</span>
+    </header>
+
+    <main>
+        <!-- PESTAÑA 1: CONSULTAR Y ESCANEAR -->
+        <div id="tab-consultar" class="tab-content active">
+            <button onclick="iniciarCamara()" class="btn-blue" id="btn-start-cam">📷 Activar Cámara Escáner</button>
+            <button onclick="detenerCamara()" class="btn-danger" id="btn-stop-cam" style="display:none;">⏹️ Apagar Cámara</button>
+            
+            <div id="reader" style="margin-top: 10px;"></div>
+
+            <input type="text" id="input-codigo" placeholder="Escriba nombre o código..." oninput="filtrarOEscaneo(this.value)">
+            
+            <div id="lista-busqueda-rapida" class="search-results-list" style="display:none;"></div>
+
+            <div class="card" id="card-resultado" style="text-align: center; display:none;">
+                <div id="res-nombre" style="font-size: 1.3rem; font-weight: bold;">---</div>
+                <div id="res-precio" class="precio-grande">$0.00</div>
+                <div id="res-cat" style="color: var(--text-muted);">Categoría: ---</div>
+                
+                <div id="actions-consultar" style="display:flex; margin-top:15px; gap:10px; flex-direction:column;">
+                    <button onclick="agregarDelBuscadorAlCarrito()">🛒 Agregar al Carrito</button>
+                    <button onclick="abrirModalEditarPrecio()" class="btn-warning">✏️ Editar Precio en Nube</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PESTAÑA 2: VENDER (CARRITO) -->
+        <div id="tab-vender" class="tab-content">
+            <button onclick="abrirModalComun()" class="btn-blue">➕ Producto Común / Servicio</button>
+            
+            <div class="card" style="margin-top: 15px;">
+                <h3 style="margin-top:0;">Carrito de Venta</h3>
+                <div id="lista-carrito">
+                    <p style="color: var(--text-muted); text-align: center;">Carrito vacío</p>
+                </div>
+                <hr style="border-color: #333; margin: 15px 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 1.2rem; font-weight: bold;">TOTAL:</span>
+                    <span id="lbl-total-carrito" class="precio-grande" style="margin: 0;">$0.00</span>
+                </div>
+                <button onclick="abrirModalCobro()" style="margin-top: 15px;">✔ Cobrar Venta</button>
+            </div>
+        </div>
+
+        <!-- PESTAÑA 3: CATÁLOGO -->
+        <div id="tab-catalogo" class="tab-content">
+            <div class="sticky-search">
+                <input type="text" id="filtro-catalogo" placeholder="🔍 Buscar en catálogo..." onkeyup="filtrarCatalogoUI(this.value)">
+            </div>
+            <div id="lista-catalogo"></div>
+        </div>
+    </main>
+
+    <!-- NAVEGACIÓN INFERIOR -->
+    <nav>
+        <div id="nav-consultar" class="active" onclick="navegarA('consultar')">🔍 Consultar</div>
+        <div id="nav-vender" onclick="navegarA('vender')">🛒 Vender</div>
+        <div id="nav-catalogo" onclick="navegarA('catalogo')">📦 Catálogo</div>
+    </nav>
+
+    <!-- MODAL PRODUCTO COMÚN -->
+    <div id="modal-comun" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">➕ Producto Común</h3>
+            <input type="text" id="comun-nombre" placeholder="Nombre (ej. Copia, Engargolado)">
+            <input type="number" id="comun-precio" placeholder="Precio ($)">
+            <input type="number" id="comun-cant" value="1" placeholder="Cantidad">
+            <button onclick="guardarProductoComun()">Agregar al Carrito</button>
+            <button onclick="cerrarModales()" class="btn-danger" style="margin-top: 8px;">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR PRECIO -->
+    <div id="modal-edit-precio" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">✏️ Editar Precio en Firebase</h3>
+            <div id="edit-prod-nombre" style="font-weight:bold; margin-bottom:10px;">---</div>
+            <input type="number" step="0.5" id="edit-prod-precio" placeholder="Nuevo Precio ($)">
+            <button onclick="guardarNuevoPrecioFirebase()" class="btn-warning">Guardar en Firebase</button>
+            <button onclick="cerrarModales()" class="btn-danger" style="margin-top: 8px;">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- MODAL COBRO Y TICKET -->
+    <div id="modal-cobro" class="modal">
+        <div class="modal-content">
+            <div id="seccion-formulario-cobro">
+                <h3 style="margin-top:0;">Cobro de Venta</h3>
+                <div style="font-size: 1.1rem; text-align: center;">Total a Pagar:</div>
+                <div id="cobro-total-txt" class="precio-grande">$0.00</div>
+                <input type="number" id="cobro-paga" placeholder="Con cuánto paga ($)" onkeyup="calcularCambioUI()">
+                <div style="text-align: center; margin: 10px 0;">
+                    <div>CAMBIO:</div>
+                    <div id="cobro-cambio-txt" style="font-size: 2.2rem; color: var(--accent-blue); font-weight: bold;">$0.00</div>
+                </div>
+                <button onclick="confirmarVentaFirebase()">✔ Confirmar y Generar Ticket</button>
+                <button onclick="cerrarModales()" class="btn-danger" style="margin-top: 8px;">Cancelar</button>
+            </div>
+
+            <!-- TICKET VISTA PREVIA -->
+            <div id="seccion-ticket-generado" style="display:none;">
+                <div id="ticket-impresion" style="background:#fff; color:#000; padding:15px; border-radius:8px; font-family:monospace; font-size:0.9rem;">
+                    <div style="text-align:center; font-weight:bold; font-size:1.1rem;">PAPELERÍA KEYLIN</div>
+                    <div style="text-align:center; font-size:0.8rem;">C 17 x 18 y 20 Holca, Yuc.</div>
+                    <div style="text-align:center; font-size:0.8rem;">Cel: 9993817373</div>
+                    <div style="text-align:center; font-size:0.8rem;" id="ticket-fecha">------------------------</div>
+                    <hr style="border-top:1px dashed #000; margin:8px 0;">
+                    <div id="ticket-detalles-list"></div>
+                    <hr style="border-top:1px dashed #000; margin:8px 0;">
+                    <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                        <span>TOTAL:</span><span id="ticket-total">$0.00</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>PAGADO:</span><span id="ticket-pagado">$0.00</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>CAMBIO:</span><span id="ticket-cambio">$0.00</span>
+                    </div>
+                    <hr style="border-top:1px dashed #000; margin:8px 0;">
+                    <div style="text-align:center; font-weight:bold; margin-top:5px;">¡Gracias por su compra!</div>
+                </div>
+
+                <button onclick="window.print()" class="btn-blue" style="margin-top:15px;">🖨️ Imprimir / Guardar Ticket</button>
+                <button onclick="finalizarTicketCerrar()" style="margin-top:8px;">Finalizar y Limpiar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÓGICA JAVASCRIPT & FIREBASE -->
+    <script>
+        const URL_FIREBASE = "https://catalogo-precios-5ff25-default-rtdb.firebaseio.com";
+        let productosCache = {};
+        let carrito = [];
+        let html5QrcodeScanner = null;
+        let productoSeleccionadoActual = null;
+        let pestanaActual = "consultar";
+
+        window.onload = () => {
+            cargarProductosFirebase();
+            configurarControlNavegacion();
+        };
+
+        // Control del botón atrás / gestos del celular
+        function configurarControlNavegacion() {
+            history.pushState({ tab: 'consultar' }, '');
+            window.onpopstate = function(event) {
+                if (pestanaActual === 'catalogo') {
+                    navegarA('vender', false);
+                    history.pushState({ tab: 'vender' }, '');
+                } else if (pestanaActual === 'vender') {
+                    navegarA('consultar', false);
+                    history.pushState({ tab: 'consultar' }, '');
+                } else {
+                    // Si está en consultar, permite la salida
+                }
+            };
+        }
+
+        function navegarA(tabName, pushState = true) {
+            pestanaActual = tabName;
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('nav div').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.getElementById(`nav-${tabName}`).classList.add('active');
+
+            if (pushState) {
+                history.pushState({ tab: tabName }, '');
+            }
+            if (tabName !== 'consultar') detenerCamara();
+        }
+
+        function cargarProductosFirebase() {
+            document.getElementById('indicator-cloud').innerText = "🔄 Sincronizando...";
+            fetch(`${URL_FIREBASE}/productos.json`)
+                .then(res => res.json())
+                .then(data => {
+                    productosCache = data || {};
+                    renderizarCatalogo();
+                    document.getElementById('indicator-cloud').innerText = "☁️ Conectado";
+                })
+                .catch(err => {
+                    document.getElementById('indicator-cloud').innerText = "⚠️ Sin Conexión";
+                });
+        }
+
+        // Búsqueda Dinámica y Limpieza en Vacío (Pestaña Consultar)
+        function filtrarOEscaneo(valor) {
+            let val = valor.trim();
+            let listaUI = document.getElementById('lista-busqueda-rapida');
+            let cardRes = document.getElementById('card-resultado');
+
+            if (val === "") {
+                listaUI.style.display = 'none';
+                cardRes.style.display = 'none';
+                productoSeleccionadoActual = null;
+                return;
+            }
+
+            let filtroUpper = val.toUpperCase();
+            let coincidencias = Object.keys(productosCache).filter(cod => 
+                cod.includes(filtroUpper) || (productosCache[cod].nombre && productosCache[cod].nombre.toUpperCase().includes(filtroUpper))
+            );
+
+            if (coincidencias.length > 0) {
+                listaUI.innerHTML = "";
+                listaUI.style.display = 'block';
+
+                // Si escaneó un código exacto
+                if (productosCache[val]) {
+                    seleccionarProductoResultado(val);
+                    listaUI.style.display = 'none';
+                    return;
+                }
+
+                coincidencias.slice(0, 6).forEach(cod => {
+                    let p = productosCache[cod];
+                    listaUI.innerHTML += `
+                        <div class="search-item" onclick="seleccionarProductoResultado('${cod}')">
+                            <span>${p.nombre}</span>
+                            <strong style="color:var(--accent);">$${parseFloat(p.precio).toFixed(2)}</strong>
+                        </div>
+                    `;
+                });
+            } else {
+                listaUI.style.display = 'none';
+                cardRes.style.display = 'block';
+                document.getElementById('res-nombre').innerText = "❌ No Encontrado";
+                document.getElementById('res-precio').innerText = "$0.00";
+                document.getElementById('res-cat').innerText = `Buscado: ${val}`;
+                document.getElementById('actions-consultar').style.display = 'none';
+            }
+        }
+
+        function seleccionarProductoResultado(codigo) {
+            let p = productosCache[codigo];
+            if (!p) return;
+            
+            productoSeleccionadoActual = { codigo: codigo, ...p };
+            document.getElementById('res-nombre').innerText = p.nombre;
+            document.getElementById('res-precio').innerText = `$${parseFloat(p.precio).toFixed(2)}`;
+            document.getElementById('res-cat').innerText = `Código: ${codigo} | Cat: ${p.categoria || 'General'}`;
+            
+            document.getElementById('lista-busqueda-rapida').style.display = 'none';
+            document.getElementById('card-resultado').style.display = 'block';
+            document.getElementById('actions-consultar').style.display = 'flex';
+        }
+
+        // Cámara / Escáner
+        function iniciarCamara() {
+            document.getElementById('btn-start-cam').style.display = 'none';
+            document.getElementById('btn-stop-cam').style.display = 'block';
+            
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            html5QrcodeScanner.start(
+                { facingMode: "environment" },
+                { fps: 15, qrbox: { width: 250, height: 150 } },
+                (decodedText) => {
+                    if (navigator.vibrate) navigator.vibrate(100);
+                    document.getElementById('input-codigo').value = decodedText;
+                    filtrarOEscaneo(decodedText);
+                }
+            ).catch(err => {
+                alert("Error de cámara: " + err);
+                detenerCamara();
+            });
+        }
+
+        function detenerCamara() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    html5QrcodeScanner.clear();
+                    document.getElementById('btn-start-cam').style.display = 'block';
+                    document.getElementById('btn-stop-cam').style.display = 'none';
+                }).catch(() => {});
+            }
+        }
+
+        // Carrito
+        function agregarDelBuscadorAlCarrito() {
+            if (productoSeleccionadoActual) {
+                agregarAlCarrito(productoSeleccionadoActual.codigo, productoSeleccionadoActual.nombre, productoSeleccionadoActual.precio);
+                alert(`🛒 Agregado: ${productoSeleccionadoActual.nombre}`);
+            }
+        }
+
+        function agregarAlCarrito(codigo, nombre, precio) {
+            let item = carrito.find(i => i.codigo === codigo && codigo !== "0");
+            if (item) {
+                item.cantidad++;
+                item.subtotal = item.cantidad * item.costo;
+            } else {
+                carrito.push({
+                    codigo: String(codigo),
+                    nombre: nombre,
+                    costo: parseFloat(precio),
+                    cantidad: 1,
+                    descuento: 0,
+                    subtotal: parseFloat(precio)
+                });
+            }
+            renderizarCarrito();
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function renderizarCarrito() {
+            let container = document.getElementById('lista-carrito');
+            let total = 0;
+            container.innerHTML = "";
+
+            if (carrito.length === 0) {
+                container.innerHTML = `<p style="color: var(--text-muted); text-align: center;">Carrito vacío</p>`;
+            } else {
+                carrito.forEach((item, index) => {
+                    total += item.subtotal;
+                    container.innerHTML += `
+                        <div class="cart-item">
+                            <div>
+                                <strong>${item.cantidad}x ${item.nombre}</strong><br>
+                                <small style="color:#aaa">$${item.costo.toFixed(2)} c/u</small>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <strong>$${item.subtotal.toFixed(2)}</strong>
+                                <button onclick="modificarCantidad(${index}, -1)" class="btn-warning" style="width:auto; padding:6px 12px; margin:0;">-</button>
+                                <button onclick="modificarCantidad(${index}, 1)" style="width:auto; padding:6px 12px; margin:0;">+</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            document.getElementById('lbl-total-carrito').innerText = `$${total.toFixed(2)}`;
+        }
+
+        function modificarCantidad(index, delta) {
+            carrito[index].cantidad += delta;
+            if (carrito[index].cantidad <= 0) {
+                carrito.splice(index, 1);
+            } else {
+                carrito[index].subtotal = carrito[index].cantidad * carrito[index].costo;
+            }
+            renderizarCarrito();
+        }
+
+        // Editar Precio
+        function abrirModalEditarPrecio() {
+            if (productoSeleccionadoActual) {
+                document.getElementById('edit-prod-nombre').innerText = productoSeleccionadoActual.nombre;
+                document.getElementById('edit-prod-precio').value = productoSeleccionadoActual.precio;
+                document.getElementById('modal-edit-precio').style.display = 'flex';
+            }
+        }
+
+        function guardarNuevoPrecioFirebase() {
+            let nuevoPrecio = parseFloat(document.getElementById('edit-prod-precio').value);
+            if (!nuevoPrecio || nuevoPrecio <= 0) return alert("Precio inválido");
+            let cod = productoSeleccionadoActual.codigo;
+
+            fetch(`${URL_FIREBASE}/productos/${cod}.json`, {
+                method: 'PATCH',
+                body: JSON.stringify({ precio: nuevoPrecio })
+            })
+            .then(res => {
+                if (res.ok) {
+                    productosCache[cod].precio = nuevoPrecio;
+                    document.getElementById('res-precio').innerText = `$${nuevoPrecio.toFixed(2)}`;
+                    renderizarCatalogo();
+                    cerrarModales();
+                    alert("✅ Precio actualizado en Firebase");
+                }
+            });
+        }
+
+        // Modales y Ticket
+        function abrirModalComun() { document.getElementById('modal-comun').style.display = 'flex'; }
+        function abrirModalCobro() {
+            if (carrito.length === 0) return alert("El carrito está vacío");
+            let total = carrito.reduce((sum, i) => sum + i.subtotal, 0);
+            document.getElementById('cobro-total-txt').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('cobro-paga').value = "";
+            document.getElementById('cobro-cambio-txt').innerText = "$0.00";
+            document.getElementById('seccion-formulario-cobro').style.display = 'block';
+            document.getElementById('seccion-ticket-generado').style.display = 'none';
+            document.getElementById('modal-cobro').style.display = 'flex';
+        }
+        function cerrarModales() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+
+        function guardarProductoComun() {
+            let nom = document.getElementById('comun-nombre').value.trim();
+            let pre = document.getElementById('comun-precio').value.trim();
+            let cant = document.getElementById('comun-cant').value || 1;
+
+            if (nom && pre) {
+                carrito.push({
+                    codigo: "0",
+                    nombre: nom,
+                    costo: parseFloat(pre),
+                    cantidad: parseInt(cant),
+                    descuento: 0,
+                    subtotal: parseFloat(pre) * parseInt(cant)
+                });
+                renderizarCarrito();
+                cerrarModales();
+                document.getElementById('comun-nombre').value = "";
+                document.getElementById('comun-precio').value = "";
+            }
+        }
+
+        function calcularCambioUI() {
+            let total = carrito.reduce((sum, i) => sum + i.subtotal, 0);
+            let val = document.getElementById('cobro-paga').value.trim();
+            let paga = val ? parseFloat(val) : total;
+            let cambio = paga - total;
+            document.getElementById('cobro-cambio-txt').innerText = cambio >= 0 ? `$${cambio.toFixed(2)}` : 'Faltante';
+        }
+
+        function confirmarVentaFirebase() {
+            let total = carrito.reduce((sum, i) => sum + i.subtotal, 0);
+            let val = document.getElementById('cobro-paga').value.trim();
+            let paga = val ? parseFloat(val) : total;
+
+            if (paga < total) return alert("El monto pagado es menor al total");
+
+            let fechaStr = new Date().toLocaleString('es-MX');
+            let ticket = {
+                fecha: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                total: total,
+                pagado: paga,
+                cambio: paga - total,
+                detalles: carrito
+            };
+
+            fetch(`${URL_FIREBASE}/ventas_moviles_pendientes.json`, {
+                method: 'POST',
+                body: JSON.stringify(ticket)
+            })
+            .then(res => {
+                if (res.ok) {
+                    // Armar vista previa del ticket
+                    document.getElementById('ticket-fecha').innerText = fechaStr;
+                    document.getElementById('ticket-total').innerText = `$${total.toFixed(2)}`;
+                    document.getElementById('ticket-pagado').innerText = `$${paga.toFixed(2)}`;
+                    document.getElementById('ticket-cambio').innerText = `$${ticket.cambio.toFixed(2)}`;
+                    
+                    let detContainer = document.getElementById('ticket-detalles-list');
+                    detContainer.innerHTML = "";
+                    carrito.forEach(i => {
+                        detContainer.innerHTML += `
+                            <div style="display:flex; justify-content:space-between;">
+                                <span>${i.cantidad}x ${i.nombre}</span>
+                                <span>$${i.subtotal.toFixed(2)}</span>
+                            </div>
+                        `;
+                    });
+
+                    document.getElementById('seccion-formulario-cobro').style.display = 'none';
+                    document.getElementById('seccion-ticket-generado').style.display = 'block';
+                }
+            })
+            .catch(err => alert("Error de red al guardar venta"));
+        }
+
+        function finalizarTicketCerrar() {
+            carrito = [];
+            renderizarCarrito();
+            cerrarModales();
+        }
+
+        // Catálogo
+        function renderizarCatalogo() {
+            filtrarCatalogoUI(document.getElementById('filtro-catalogo').value);
+        }
+
+        function filtrarCatalogoUI(filtro) {
+            let container = document.getElementById('lista-catalogo');
+            container.innerHTML = "";
+            let filtroUpper = (filtro || "").toUpperCase();
+
+            Object.keys(productosCache).forEach(cod => {
+                let p = productosCache[cod];
+                if (!filtro || cod.includes(filtroUpper) || (p.nombre && p.nombre.toUpperCase().includes(filtroUpper))) {
+                    container.innerHTML += `
+                        <div class="card" onclick="agregarAlCarrito('${cod}', '${p.nombre}', ${p.precio}); alert('🛒 Agregado: ${p.nombre}')">
+                            <strong>${p.nombre}</strong>
+                            <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                                <small style="color:#aaa">Cód: ${cod}</small>
+                                <span style="color:var(--accent); font-weight:bold;">$${parseFloat(p.precio).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
